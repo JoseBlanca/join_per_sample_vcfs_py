@@ -1,0 +1,7 @@
+[project]
+name = "join-vcfs"
+version = "0.1.0"
+description = "Join VCFs called per sample into a merged one with the alleles fixed"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
