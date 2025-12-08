@@ -5,6 +5,7 @@ description = "Join VCFs called per sample into a merged one with the alleles fi
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "more-itertools>=10.8.0",
     "numpy>=2.3.5",
 ]
 
