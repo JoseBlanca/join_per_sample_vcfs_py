@@ -31,13 +31,9 @@ def _add_var_to_bin(vars_in_bin, var, var_span, iterator_id, bin_span):
     vars_in_bin[iterator_id].append(var)
     var_span = _calculate_var_span(var)
     span_has_been_elongated = False
-    print(f"{var}")
-    print(f"{var_span=}")
-    print(f"{bin_span=}")
     if var_span[2] > bin_span[2]:
         bin_span = (bin_span[0], bin_span[1], var_span[2])
         span_has_been_elongated = True
-    print(f"{span_has_been_elongated=}", f"{bin_span=}")
     return span_has_been_elongated, bin_span
 
 
@@ -75,7 +71,6 @@ def _create_vars_bin(vcf_infos, current_chrom):
     first_span, no_vars_left, no_vars_in_current_chrom = _get_first_span(
         vcf_infos, current_chrom
     )
-    print(f"{first_span=}")
 
     if no_vars_in_current_chrom:
         yield NO_VARS_IN_CURRENT_CHROM
@@ -90,7 +85,6 @@ def _create_vars_bin(vcf_infos, current_chrom):
         span_has_been_elongated = False
         var_was_added = False
         for vcf_id, vcf_info in vcf_infos.items():
-            print(f"{vcf_id=}")
             try:
                 next_var = vcf_info["vars_iter"].peek()
             except StopIteration:
@@ -98,7 +92,6 @@ def _create_vars_bin(vcf_infos, current_chrom):
             next_var_span = _calculate_var_span(next_var)
             if _overlaps(next_var_span, bin_span):
                 var_was_added = True
-                print("overlap found")
                 try:
                     next_var = next(vcf_info["vars_iter"])
                 except StopIteration:
@@ -109,9 +102,7 @@ def _create_vars_bin(vcf_infos, current_chrom):
                 )
                 if span_has_been_elongated_this_time:
                     span_has_been_elongated = True
-        print(f"{span_has_been_elongated=}")
         if not span_has_been_elongated and not var_was_added:
-            print("We can stop adding SNPs to bin")
             break
     yield VarBin(vars_in_bin, bin_span)
 
