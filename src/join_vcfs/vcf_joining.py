@@ -7,15 +7,6 @@ from more_itertools import peekable
 from join_vcfs.vcf_parser import parse_vcf
 
 
-def _fill_incoming_snps(incomping_snps, snp_iterators, iterator_ids):
-    for id_ in iterator_ids:
-        if id_ not in incomping_snps:
-            try:
-                incomping_snps[id_] = next(snp_iterators[id_]["vars_iter"])
-            except StopIteration:
-                pass
-
-
 def _overlaps(var_span, bin_span):
     if var_span[0] != bin_span[0]:
         return False
@@ -40,10 +31,14 @@ def _add_var_to_bin(vars_in_bin, var, var_span, iterator_id, bin_span):
     vars_in_bin[iterator_id].append(var)
     var_span = _calculate_var_span(var)
     span_has_been_elongated = False
-    if var_span[1] > bin_span[1]:
-        bin_span[1] = var_span[1]
+    print(f"{var}")
+    print(f"{var_span=}")
+    print(f"{bin_span=}")
+    if var_span[2] > bin_span[2]:
+        bin_span = (bin_span[0], bin_span[1], var_span[2])
         span_has_been_elongated = True
-    return span_has_been_elongated
+    print(f"{span_has_been_elongated=}", f"{bin_span=}")
+    return span_has_been_elongated, bin_span
 
 
 NO_VARS_LEFT = 1
@@ -80,36 +75,45 @@ def _create_vars_bin(vcf_infos, current_chrom):
     first_span, no_vars_left, no_vars_in_current_chrom = _get_first_span(
         vcf_infos, current_chrom
     )
+    print(f"{first_span=}")
 
     if no_vars_in_current_chrom:
-        return NO_VARS_IN_CURRENT_CHROM
+        yield NO_VARS_IN_CURRENT_CHROM
     elif no_vars_left:
-        return NO_VARS_LEFT
+        yield NO_VARS_LEFT
 
     vars_in_bin = defaultdict(list)
-    span_has_been_elongated = False
     bin_span = first_span
+    # everytime we elongate a span we have to go through every vcf to collect
+    # the posible overlapping variations
     while True:
+        span_has_been_elongated = False
+        var_was_added = False
         for vcf_id, vcf_info in vcf_infos.items():
+            print(f"{vcf_id=}")
             try:
                 next_var = vcf_info["vars_iter"].peek()
             except StopIteration:
                 continue
             next_var_span = _calculate_var_span(next_var)
             if _overlaps(next_var_span, bin_span):
+                var_was_added = True
+                print("overlap found")
                 try:
                     next_var = next(vcf_info["vars_iter"])
                 except StopIteration:
                     msg = "Implementation error, we have previously peeked the var iterator and we made sure that a var was coming"
                     raise RuntimeError(msg)
-                span_has_been_elongated_this_time = _add_var_to_bin(
+                span_has_been_elongated_this_time, bin_span = _add_var_to_bin(
                     vars_in_bin, next_var, next_var_span, vcf_id, bin_span
                 )
                 if span_has_been_elongated_this_time:
                     span_has_been_elongated = True
-        if not span_has_been_elongated:
+        print(f"{span_has_been_elongated=}")
+        if not span_has_been_elongated and not var_was_added:
+            print("We can stop adding SNPs to bin")
             break
-    return VarBin(vars_in_bin, bin_span)
+    yield VarBin(vars_in_bin, bin_span)
 
 
 def _generate_var_bins(
@@ -120,18 +124,21 @@ def _generate_var_bins(
 
     current_chrom = remaining_chromosomes.pop(0)
     while current_chrom is not None:
-        res = _create_vars_bin(vcf_infos, current_chrom)
-        if res == NO_VARS_IN_CURRENT_CHROM:
-            if remaining_chromosomes:
-                current_chrom = remaining_chromosomes.pop(0)
+        res = None
+        for res in _create_vars_bin(vcf_infos, current_chrom):
+            if res == NO_VARS_IN_CURRENT_CHROM:
+                if remaining_chromosomes:
+                    current_chrom = remaining_chromosomes.pop(0)
+                else:
+                    current_chrom = None
+                break
+            elif res == NO_VARS_LEFT:
+                break
             else:
-                current_chrom = None
-            continue
-        elif res == NO_VARS_LEFT:
+                # This is a vars_bin
+                yield res
+        if res == NO_VARS_LEFT:
             break
-        else:
-            # This is a vars_bin
-            yield res
 
 
 def _create_vcf_infos(vcf_paths):
