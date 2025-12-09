@@ -44,17 +44,20 @@ def get_var_bins(vcf_paths, sorted_chromosomes):
     return bin_spans, bin_vars
 
 
+def write_in_temp_file(temp_file, contents):
+    temp_file.write(contents)
+    temp_file.flush()
+    tmp_path = Path(temp_file.name)
+    return tmp_path
+
+
 def test_simple_binning():
     with (
         tempfile.NamedTemporaryFile() as tmp1,
         tempfile.NamedTemporaryFile() as tmp2,
     ):
-        tmp1.write(VCF1)
-        tmp1.flush()
-        tmp1_path = Path(tmp1.name)
-        tmp2.write(VCF2)
-        tmp2.flush()
-        tmp2_path = Path(tmp2.name)
+        tmp1_path = write_in_temp_file(tmp1, VCF1)
+        tmp2_path = write_in_temp_file(tmp2, VCF2)
 
         bin_spans = get_var_bins(
             [tmp1_path, tmp2_path], sorted_chromosomes=["1", "20"]
@@ -74,12 +77,8 @@ def test_binning_with_deletion_spanning_several_snps():
         tempfile.NamedTemporaryFile() as tmp1,
         tempfile.NamedTemporaryFile() as tmp3,
     ):
-        tmp1.write(VCF1)
-        tmp1.flush()
-        tmp1_path = Path(tmp1.name)
-        tmp3.write(VCF3)
-        tmp3.flush()
-        tmp3_path = Path(tmp3.name)
+        tmp1_path = write_in_temp_file(tmp1, VCF1)
+        tmp3_path = write_in_temp_file(tmp3, VCF3)
 
         bin_spans = get_var_bins(
             [tmp1_path, tmp3_path], sorted_chromosomes=["1", "20"]
@@ -94,18 +93,10 @@ def test_binning_with_deletion_spanning_several_snps():
         tempfile.NamedTemporaryFile() as tmp4,
         tempfile.NamedTemporaryFile() as tmp5,
     ):
-        tmp1.write(VCF1)
-        tmp1.flush()
-        tmp1_path = Path(tmp1.name)
-        tmp3.write(VCF3)
-        tmp3.flush()
-        tmp3_path = Path(tmp3.name)
-        tmp4.write(VCF4)
-        tmp4.flush()
-        tmp4_path = Path(tmp4.name)
-        tmp5.write(VCF5)
-        tmp5.flush()
-        tmp5_path = Path(tmp5.name)
+        tmp1_path = write_in_temp_file(tmp1, VCF1)
+        tmp3_path = write_in_temp_file(tmp3, VCF3)
+        tmp4_path = write_in_temp_file(tmp4, VCF4)
+        tmp5_path = write_in_temp_file(tmp5, VCF5)
 
         bin_spans = get_var_bins(
             [tmp1_path, tmp3_path, tmp4_path, tmp5_path],
@@ -117,3 +108,23 @@ def test_binning_with_deletion_spanning_several_snps():
             ("20", 20, 20),
             ("21", 4, 10),
         ]
+
+
+# TODO
+# check that once a chromosome has passed is not seen again
+# check that var locations are ordered
+#
+# ------
+#  -  -
+#
+# -------
+#  -   -----
+#  -- ---  -
+#
+# -------   different chrom
+#   -       -
+#
+# -------
+#    -      no more vars
+#
+#
