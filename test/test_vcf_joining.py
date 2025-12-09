@@ -73,6 +73,21 @@ def test_simple_binning():
             ("20", 6, 6),
         ]
 
+    with (
+        tempfile.NamedTemporaryFile() as tmp1,
+    ):
+        tmp1_path = write_in_temp_file(tmp1, VCF1)
+
+        bin_spans = get_var_bins([tmp1_path], sorted_chromosomes=["20"])[0]
+        assert bin_spans == [
+            ("20", 1, 1),
+            ("20", 2, 2),
+            ("20", 3, 3),
+            ("20", 4, 4),
+            ("20", 5, 5),
+            ("20", 6, 6),
+        ]
+
 
 def test_binning_with_deletion_spanning_several_snps():
     with (
@@ -125,11 +140,28 @@ def test_wrong_chrom_order():
         tmp1_path = write_in_temp_file(tmp1, VCF_WITH_WRONG_CHROMOSOME_ORDER)
 
         with pytest.raises(RuntimeError):
-            get_var_bins([tmp1_path], sorted_chromosomes=["1", "2"])[0]
+            get_var_bins([tmp1_path], sorted_chromosomes=["1", "2"])
+
+
+VCF_WITH_WRONG_ORDER = b"""#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA00005
+1\t3\t.\tG\tA\t20\tPASS\t.\tGT\t0|0
+1\t4\t.\tG\tA\t20\tPASS\t.\tGT\t0|0
+1\t5\t.\tG\tA\t20\tPASS\t.\tGT\t0|0
+1\t8\t.\tG\tA\t20\tPASS\t.\tGT\t0|0
+1\t2\t.\tG\tA\t20\tPASS\t.\tGT\t0|0"""
+
+
+def test_wrong_order():
+    with (
+        tempfile.NamedTemporaryFile() as tmp1,
+    ):
+        tmp1_path = write_in_temp_file(tmp1, VCF_WITH_WRONG_ORDER)
+
+        with pytest.raises(RuntimeError):
+            get_var_bins([tmp1_path], sorted_chromosomes=["1"])
 
 
 # TODO
-# check that var locations are ordered
 #
 # ------
 #  -  -
