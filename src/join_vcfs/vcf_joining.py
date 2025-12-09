@@ -41,7 +41,7 @@ NO_VARS_LEFT = 1
 NO_VARS_IN_CURRENT_CHROM = 2
 
 
-def _get_first_span(vcf_infos, current_chrom):
+def _get_first_span(vcf_infos, current_chrom, chroms_seen):
     first_span = None
     no_vars_left = True
     no_vars_in_current_chrom = True
@@ -52,7 +52,12 @@ def _get_first_span(vcf_infos, current_chrom):
             no_vars_left = False
         except StopIteration:
             continue
-        if next_var["chrom"] != current_chrom:
+        chrom = next_var["chrom"]
+        if chrom in chroms_seen:
+            raise RuntimeError(
+                f"A chromosome already seen has appeared: {chrom}, VCF seems not to be ordered"
+            )
+        if chrom != current_chrom:
             continue
         no_vars_in_current_chrom = False
         next_var_span = _calculate_var_span(next_var)
@@ -67,9 +72,9 @@ def _get_first_span(vcf_infos, current_chrom):
 VarBin = namedtuple("VarBin", ["vars", "span"])
 
 
-def _create_vars_bin(vcf_infos, current_chrom):
+def _create_vars_bin(vcf_infos, current_chrom, chroms_seen):
     first_span, no_vars_left, no_vars_in_current_chrom = _get_first_span(
-        vcf_infos, current_chrom
+        vcf_infos, current_chrom, chroms_seen
     )
 
     if no_vars_in_current_chrom:
@@ -90,6 +95,9 @@ def _create_vars_bin(vcf_infos, current_chrom):
             except StopIteration:
                 continue
             next_var_span = _calculate_var_span(next_var)
+            if next_var_span[0] in chroms_seen:
+                msg = f"A chromosome already seen has appeared: {next_var_span[0]}, VCF seems not to be ordered"
+                raise RuntimeError(msg)
             if _overlaps(next_var_span, bin_span):
                 var_was_added = True
                 try:
@@ -114,11 +122,13 @@ def _generate_var_bins(
     remaining_chromosomes = remaining_chromosomes[:]
 
     current_chrom = remaining_chromosomes.pop(0)
+    chroms_seen = []
     while current_chrom is not None:
         res = None
-        for res in _create_vars_bin(vcf_infos, current_chrom):
+        for res in _create_vars_bin(vcf_infos, current_chrom, chroms_seen):
             if res == NO_VARS_IN_CURRENT_CHROM:
                 if remaining_chromosomes:
+                    chroms_seen.append(current_chrom)
                     current_chrom = remaining_chromosomes.pop(0)
                 else:
                     current_chrom = None

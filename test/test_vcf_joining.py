@@ -1,6 +1,8 @@
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from join_vcfs.vcf_joining import _create_vcf_infos, _generate_var_bins
 
 VCF1 = b"""#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA00001
@@ -110,8 +112,23 @@ def test_binning_with_deletion_spanning_several_snps():
         ]
 
 
+VCF_WITH_WRONG_CHROMOSOME_ORDER = b"""#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA00005
+1\t3\t.\tG\tA\t20\tPASS\t.\tGT\t0|0
+2\t8\t.\tG\tA\t20\tPASS\t.\tGT\t0|0
+1\t20\t.\tG\tA\t20\tPASS\t.\tGT\t0|0"""
+
+
+def test_wrong_chrom_order():
+    with (
+        tempfile.NamedTemporaryFile() as tmp1,
+    ):
+        tmp1_path = write_in_temp_file(tmp1, VCF_WITH_WRONG_CHROMOSOME_ORDER)
+
+        with pytest.raises(RuntimeError):
+            get_var_bins([tmp1_path], sorted_chromosomes=["1", "2"])[0]
+
+
 # TODO
-# check that once a chromosome has passed is not seen again
 # check that var locations are ordered
 #
 # ------
