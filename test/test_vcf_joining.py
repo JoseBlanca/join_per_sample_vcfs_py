@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from join_vcfs.vcf_joining import _create_vcf_infos, _generate_var_bins
+from join_vcfs.vcf_joining import _create_vcf_infos, _group_overlapping_vars
 
 VCF1 = b"""#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA00001
 20\t1\t.\tG\tA\t20\tPASS\t.\tGT\t0|0
@@ -36,10 +36,10 @@ VCF5 = b"""#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA00005
 20\t20\t.\tG\tA\t20\tPASS\t.\tGT\t0|0"""
 
 
-def get_var_bins(vcf_paths, sorted_chromosomes):
+def group_overlapping_vars(vcf_paths, sorted_chromosomes):
     remaining_chromosomes = sorted_chromosomes[:]
     vcf_infos = _create_vcf_infos(vcf_paths)
-    var_bins = list(_generate_var_bins(vcf_infos, remaining_chromosomes))
+    var_bins = list(_group_overlapping_vars(vcf_infos, remaining_chromosomes))
     bin_spans = [bin.span for bin in var_bins]
     bin_vars = [bin.vars for bin in var_bins]
 
@@ -61,7 +61,7 @@ def test_simple_binning():
         tmp1_path = write_in_temp_file(tmp1, VCF1)
         tmp2_path = write_in_temp_file(tmp2, VCF2)
 
-        bin_spans = get_var_bins(
+        bin_spans = group_overlapping_vars(
             [tmp1_path, tmp2_path], sorted_chromosomes=["1", "20"]
         )[0]
         assert bin_spans == [
@@ -78,7 +78,7 @@ def test_simple_binning():
     ):
         tmp1_path = write_in_temp_file(tmp1, VCF1)
 
-        bin_spans = get_var_bins([tmp1_path], sorted_chromosomes=["20"])[0]
+        bin_spans = group_overlapping_vars([tmp1_path], sorted_chromosomes=["20"])[0]
         assert bin_spans == [
             ("20", 1, 1),
             ("20", 2, 2),
@@ -97,7 +97,7 @@ def test_binning_with_deletion_spanning_several_snps():
         tmp1_path = write_in_temp_file(tmp1, VCF1)
         tmp3_path = write_in_temp_file(tmp3, VCF3)
 
-        bin_spans = get_var_bins(
+        bin_spans = group_overlapping_vars(
             [tmp1_path, tmp3_path], sorted_chromosomes=["1", "20"]
         )[0]
         assert bin_spans == [
@@ -115,7 +115,7 @@ def test_binning_with_deletion_spanning_several_snps():
         tmp4_path = write_in_temp_file(tmp4, VCF4)
         tmp5_path = write_in_temp_file(tmp5, VCF5)
 
-        bin_spans = get_var_bins(
+        bin_spans = group_overlapping_vars(
             [tmp1_path, tmp3_path, tmp4_path, tmp5_path],
             sorted_chromosomes=["1", "20", "21"],
         )[0]
@@ -140,7 +140,7 @@ def test_wrong_chrom_order():
         tmp1_path = write_in_temp_file(tmp1, VCF_WITH_WRONG_CHROMOSOME_ORDER)
 
         with pytest.raises(RuntimeError):
-            get_var_bins([tmp1_path], sorted_chromosomes=["1", "2"])
+            group_overlapping_vars([tmp1_path], sorted_chromosomes=["1", "2"])
 
 
 VCF_WITH_WRONG_ORDER = b"""#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA00005
@@ -158,7 +158,7 @@ def test_wrong_order():
         tmp1_path = write_in_temp_file(tmp1, VCF_WITH_WRONG_ORDER)
 
         with pytest.raises(RuntimeError):
-            get_var_bins([tmp1_path], sorted_chromosomes=["1"])
+            group_overlapping_vars([tmp1_path], sorted_chromosomes=["1"])
 
 
 # TODO

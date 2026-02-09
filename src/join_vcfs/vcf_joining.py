@@ -99,7 +99,7 @@ def _create_vars_bin(vcf_infos, current_chrom, chroms_seen, last_pos_seen):
     vars_in_bin = defaultdict(list)
     bin_span = first_span
     # everytime we elongate a span we have to go through every vcf to collect
-    # the posible overlapping variations
+    # the possible overlapping variations
     while True:
         span_has_been_elongated = False
         var_was_added = False
@@ -138,7 +138,7 @@ def _create_vars_bin(vcf_infos, current_chrom, chroms_seen, last_pos_seen):
     yield VarBin(vars_in_bin, bin_span)
 
 
-def _generate_var_bins(
+def _group_overlapping_vars(
     vcf_infos: dict[int, dict],
     remaining_chromosomes: list[str],
 ):
@@ -203,4 +203,4 @@ def join_vcfs(vcf_paths: list[Path], ordered_chromosomes: list) -> Iterator:
     remaining_chromosomes = ordered_chromosomes[:]
     vcf_infos = _create_vcf_infos(vcf_paths)
 
-    var_bins = _generate_var_bins(vcf_infos, remaining_chromosomes)
+    var_bins = _group_overlapping_vars(vcf_infos, remaining_chromosomes)
