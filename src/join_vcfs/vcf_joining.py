@@ -27,8 +27,7 @@ def _overlaps(var_span, bin_span):
 
 
 def _calculate_var_span(var):
-    alleles_len = max(len(allele) for allele in var["alleles"])
-    return var["chrom"], var["pos"], var["pos"] + alleles_len - 1
+    return var["chrom"], var["pos"], var["pos"] + len(var["alleles"][0]) - 1
 
 
 def _add_var_to_bin(vars_in_bin, var, var_span, iterator_id, bin_span):
