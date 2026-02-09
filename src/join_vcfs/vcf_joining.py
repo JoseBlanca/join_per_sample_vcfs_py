@@ -82,7 +82,9 @@ def _get_first_span(vcf_infos, current_chrom, chroms_seen, last_pos_seen):
 VarBin = namedtuple("VarBin", ["vars", "span"])
 
 
-def _create_vars_bin(vcf_infos, current_chrom, chroms_seen, last_pos_seen):
+def _group_overlapping_vars_for_chrom(
+    vcf_infos, current_chrom, chroms_seen, last_pos_seen
+):
     first_span, no_vars_left, no_vars_in_current_chrom = _get_first_span(
         vcf_infos, current_chrom, chroms_seen, last_pos_seen
     )
@@ -149,7 +151,7 @@ def _group_overlapping_vars(
     chroms_seen = []
     while current_chrom is not None:
         res = None
-        for res in _create_vars_bin(
+        for res in _group_overlapping_vars_for_chrom(
             vcf_infos, current_chrom, chroms_seen, last_pos_seen
         ):
             if res == NO_VARS_IN_CURRENT_CHROM:
@@ -159,14 +161,14 @@ def _group_overlapping_vars(
                     last_pos_seen = 0
                 else:
                     current_chrom = None
-                break
+                break  # the for that iterates over the grouped vars
             elif res == NO_VARS_LEFT:
-                break
+                break  # the for that iterates over the grouped vars
             else:
                 # This is a vars_bin
                 yield res
         if res == NO_VARS_LEFT:
-            break
+            break  # the while that iterates over chromosomes
 
 
 def _create_vcf_infos(vcf_paths):
