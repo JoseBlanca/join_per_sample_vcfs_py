@@ -44,7 +44,7 @@ NO_VARS_LEFT = 1
 NO_VARS_IN_CURRENT_CHROM = 2
 
 
-def _get_first_span(vcf_infos, current_chrom, chroms_seen, last_pos_seen):
+def _get_first_span(vcf_infos, current_chrom, chroms_seen, last_pos_analyzed):
     first_span = None
     no_vars_left = True
     no_vars_in_current_chrom = True
@@ -61,7 +61,7 @@ def _get_first_span(vcf_infos, current_chrom, chroms_seen, last_pos_seen):
             raise RuntimeError(
                 f"A chromosome already seen has appeared: {chrom}:{next_var['pos']}, VCF seems not to be ordered"
             )
-        if next_var["pos"] < last_pos_seen:
+        if next_var["pos"] < last_pos_analyzed:
             raise RuntimeError(
                 f"The VCF seems not to be ordered: {chrom}:{next_var['pos']}"
             )
@@ -78,14 +78,14 @@ def _get_first_span(vcf_infos, current_chrom, chroms_seen, last_pos_seen):
     return first_span, no_vars_left, no_vars_in_current_chrom
 
 
-VarBin = namedtuple("VarBin", ["vars", "span"])
+VarGroup = namedtuple("VarGroup", ["vars", "span"])
 
 
 def _group_overlapping_vars_for_chrom(
-    vcf_infos, current_chrom, chroms_seen, last_pos_seen
+    vcf_infos, current_chrom, chroms_seen, last_pos_analyzed
 ):
     first_span, no_vars_left, no_vars_in_current_chrom = _get_first_span(
-        vcf_infos, current_chrom, chroms_seen, last_pos_seen
+        vcf_infos, current_chrom, chroms_seen, last_pos_analyzed
     )
 
     if no_vars_in_current_chrom:
@@ -95,7 +95,7 @@ def _group_overlapping_vars_for_chrom(
 
     if first_span is None:
         raise InternalError("Here first span should not be None")
-    last_pos_seen = first_span[1]
+    last_pos_analyzed = first_span[1]
 
     vars_in_bin = defaultdict(list)
     bin_span = first_span
@@ -129,14 +129,14 @@ def _group_overlapping_vars_for_chrom(
             if bin_span[0] in chroms_seen:
                 msg = f"A chromosome already seen has appeared: {next_var_span[0]}:-{next_var_span[1]}, VCF seems not to be ordered"
                 raise RuntimeError(msg)
-            if bin_span[1] < last_pos_seen:
+            if bin_span[1] < last_pos_analyzed:
                 msg = f"A variation seems not to be ordered: {next_var_span[0]}:-{next_var_span[1]}, VCF seems not to be ordered"
                 raise RuntimeError(msg)
 
         if not span_has_been_elongated and not var_was_added:
             break
-    last_pos_seen = bin_span[1]
-    yield VarBin(vars_in_bin, bin_span)
+    last_pos_analyzed = bin_span[1]
+    yield VarGroup(vars_in_bin, bin_span)
 
 
 def _group_overlapping_vars(
@@ -146,18 +146,18 @@ def _group_overlapping_vars(
     remaining_chromosomes = remaining_chromosomes[:]
 
     current_chrom = remaining_chromosomes.pop(0)
-    last_pos_seen = 0
+    last_pos_analyzed = 0
     chroms_seen = []
     while current_chrom is not None:
         res = None
         for res in _group_overlapping_vars_for_chrom(
-            vcf_infos, current_chrom, chroms_seen, last_pos_seen
+            vcf_infos, current_chrom, chroms_seen, last_pos_analyzed
         ):
             if res == NO_VARS_IN_CURRENT_CHROM:
                 if remaining_chromosomes:
                     chroms_seen.append(current_chrom)
                     current_chrom = remaining_chromosomes.pop(0)
-                    last_pos_seen = 0
+                    last_pos_analyzed = 0
                 else:
                     current_chrom = None
                 break  # the for that iterates over the grouped vars
