@@ -11,14 +11,14 @@ class InternalError(RuntimeError):
     pass
 
 
-def _overlaps(var_span, bin_span):
-    if var_span[0] != bin_span[0]:
+def _overlaps(var_span, var_group_span):
+    if var_span[0] != var_group_span[0]:
         return False
     var_start, var_end = var_span[1], var_span[2]
-    bin_start, bin_end = bin_span[1], bin_span[2]
+    bin_start, bin_end = var_group_span[1], var_group_span[2]
     if var_start < bin_start:
         msg = "Implementation error, a var has a start lower than the current var bin"
-        msg += f"var: {var_span[0]}:{var_start}-{var_end} bin_span: {bin_span[0]}:{bin_start}-{bin_end}"
+        msg += f"var: {var_span[0]}:{var_start}-{var_end} var_group_span: {var_group_span[0]}:{bin_start}-{bin_end}"
         raise InternalError(msg)
     if var_start <= bin_end:
         return True
@@ -30,14 +30,14 @@ def _calculate_var_span(var):
     return var["chrom"], var["pos"], var["pos"] + len(var["alleles"][0]) - 1
 
 
-def _add_var_to_bin(vars_in_bin, var, var_span, iterator_id, bin_span):
+def _add_var_to_bin(vars_in_bin, var, var_span, iterator_id, var_group_span):
     vars_in_bin[iterator_id].append(var)
     var_span = _calculate_var_span(var)
     span_has_been_elongated = False
-    if var_span[2] > bin_span[2]:
-        bin_span = (bin_span[0], bin_span[1], var_span[2])
+    if var_span[2] > var_group_span[2]:
+        var_group_span = (var_group_span[0], var_group_span[1], var_span[2])
         span_has_been_elongated = True
-    return span_has_been_elongated, bin_span
+    return span_has_been_elongated, var_group_span
 
 
 NO_VARS_LEFT = 1
@@ -98,7 +98,7 @@ def _group_overlapping_vars_for_chrom(
     last_pos_analyzed = first_span[1]
 
     vars_in_bin = defaultdict(list)
-    bin_span = first_span
+    var_group_span = first_span
     # everytime we elongate a span we have to go through every vcf to collect
     # the possible overlapping variations
     while True:
@@ -111,7 +111,7 @@ def _group_overlapping_vars_for_chrom(
                 continue
             next_var_span = _calculate_var_span(next_var)
 
-            if _overlaps(next_var_span, bin_span):
+            if _overlaps(next_var_span, var_group_span):
                 var_was_added = True
 
                 try:
@@ -120,23 +120,23 @@ def _group_overlapping_vars_for_chrom(
                     msg = "Implementation error, we have previously peeked the var iterator and we made sure that a var was coming"
                     raise InternalError(msg)
 
-                span_has_been_elongated_this_time, bin_span = _add_var_to_bin(
-                    vars_in_bin, next_var, next_var_span, vcf_id, bin_span
+                span_has_been_elongated_this_time, var_group_span = _add_var_to_bin(
+                    vars_in_bin, next_var, next_var_span, vcf_id, var_group_span
                 )
                 if span_has_been_elongated_this_time:
                     span_has_been_elongated = True
 
-            if bin_span[0] in chroms_seen:
+            if var_group_span[0] in chroms_seen:
                 msg = f"A chromosome already seen has appeared: {next_var_span[0]}:-{next_var_span[1]}, VCF seems not to be ordered"
                 raise RuntimeError(msg)
-            if bin_span[1] < last_pos_analyzed:
+            if var_group_span[1] < last_pos_analyzed:
                 msg = f"A variation seems not to be ordered: {next_var_span[0]}:-{next_var_span[1]}, VCF seems not to be ordered"
                 raise RuntimeError(msg)
 
         if not span_has_been_elongated and not var_was_added:
             break
-    last_pos_analyzed = bin_span[1]
-    yield VarGroup(vars_in_bin, bin_span)
+    last_pos_analyzed = var_group_span[1]
+    yield VarGroup(vars_in_bin, var_group_span)
 
 
 def _group_overlapping_vars(
