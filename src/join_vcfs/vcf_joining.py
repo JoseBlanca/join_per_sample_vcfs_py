@@ -170,7 +170,7 @@ def _group_overlapping_vars(
             break  # the while that iterates over chromosomes
 
 
-def _create_vcf_infos(vcf_paths):
+def _create_vcf_infos(vcf_paths) -> dict[int, dict]:
     vcf_paths = [Path(path) for path in vcf_paths]
     parsing_results = [parse_vcf(path) for path in vcf_paths]
 
@@ -180,11 +180,11 @@ def _create_vcf_infos(vcf_paths):
         metadata = result["metadata"]
         this_samples = list(map(str, metadata["samples"]))
 
-        overlaping_samples = samples_seen.intersection(this_samples)
-        if overlaping_samples:
+        overlapping_samples = samples_seen.intersection(this_samples)
+        if overlapping_samples:
             raise RuntimeError(
                 "Some samples are found in different VCFs: ",
-                ",".join(overlaping_samples),
+                ",".join(overlapping_samples),
             )
         samples_seen.update(this_samples)
 
