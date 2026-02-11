@@ -145,7 +145,7 @@ def _parse_id(id_):
     return id_.decode()
 
 
-def _parse_var_line(line, num_samples, ploidy=None):
+def _parse_var_line(line, num_samples, ploidy=None) -> dict:
     fields = line.split(b"\t")
     ref = fields[3].decode()
     alt = fields[4]
@@ -195,7 +195,7 @@ def _parse_var_line(line, num_samples, ploidy=None):
     }
 
 
-def _read_vars(fhand, metadata):
+def _read_vars(fhand, metadata) -> map[dict]:
     for line in fhand:
         if line.startswith(b"#CHROM"):
             break
@@ -208,7 +208,7 @@ def _read_vars(fhand, metadata):
     return vars
 
 
-def parse_vcf(vcf_path: Path):
+def parse_vcf(vcf_path: Path) -> dict:
     fpath = Path(vcf_path)
     fhand = _open_vcf(fpath)
     metadata = _parse_metadata(fhand)

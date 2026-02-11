@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Iterator
+from typing import Generator
 from collections import defaultdict, namedtuple
 from enum import Enum
 
@@ -85,7 +85,7 @@ VarGroup = namedtuple("VarGroup", ["vars", "span"])
 
 def _group_overlapping_vars_for_chrom(
     vcf_infos, current_chrom, chroms_seen, last_pos_analyzed
-):
+) -> Generator[VarIterStatus | VarGroup]:
     first_span, no_vars_left, no_vars_in_current_chrom = _get_first_span(
         vcf_infos, current_chrom, chroms_seen, last_pos_analyzed
     )
@@ -144,7 +144,7 @@ def _group_overlapping_vars_for_chrom(
 def _group_overlapping_vars(
     vcf_infos: dict[int, dict],
     remaining_chromosomes: list[str],
-):
+) -> Generator[VarGroup]:
     remaining_chromosomes = remaining_chromosomes[:]
 
     current_chrom = remaining_chromosomes.pop(0)
@@ -166,7 +166,7 @@ def _group_overlapping_vars(
             elif res == VarIterStatus.NO_VARS_LEFT:
                 break  # the for that iterates over the grouped vars
             else:
-                # This is a vars_bin
+                # This is a vars_group
                 yield res
         if res == VarIterStatus.NO_VARS_LEFT:
             break  # the while that iterates over chromosomes
@@ -200,7 +200,7 @@ def _create_vcf_infos(vcf_paths) -> dict[int, dict]:
     return vcf_infos
 
 
-def join_vcfs(vcf_paths: list[Path], ordered_chromosomes: list) -> Iterator:
+def join_vcfs(vcf_paths: list[Path], ordered_chromosomes: list):
     if not ordered_chromosomes:
         raise ValueError("Al least one chromosome should be given")
     remaining_chromosomes = ordered_chromosomes[:]
