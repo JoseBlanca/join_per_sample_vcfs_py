@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Iterator
 from collections import defaultdict, namedtuple
+from enum import Enum
 
 from more_itertools import peekable
 
@@ -9,6 +10,11 @@ from join_vcfs.vcf_parser import parse_vcf
 
 class InternalError(RuntimeError):
     pass
+
+
+class VarIterStatus(Enum):
+    NO_VARS_LEFT = 1
+    NO_VARS_IN_CURRENT_CHROM = 2
 
 
 def _overlaps(var_span, var_group_span):
@@ -38,10 +44,6 @@ def _add_var_to_bin(vars_in_bin, var, var_span, iterator_id, var_group_span):
         var_group_span = (var_group_span[0], var_group_span[1], var_span[2])
         span_has_been_elongated = True
     return span_has_been_elongated, var_group_span
-
-
-NO_VARS_LEFT = 1
-NO_VARS_IN_CURRENT_CHROM = 2
 
 
 def _get_first_span(vcf_infos, current_chrom, chroms_seen, last_pos_analyzed):
@@ -89,9 +91,9 @@ def _group_overlapping_vars_for_chrom(
     )
 
     if no_vars_in_current_chrom:
-        yield NO_VARS_IN_CURRENT_CHROM
+        yield VarIterStatus.NO_VARS_IN_CURRENT_CHROM
     elif no_vars_left:
-        yield NO_VARS_LEFT
+        yield VarIterStatus.NO_VARS_LEFT
 
     if first_span is None:
         raise InternalError("Here first span should not be None")
@@ -153,7 +155,7 @@ def _group_overlapping_vars(
         for res in _group_overlapping_vars_for_chrom(
             vcf_infos, current_chrom, chroms_seen, last_pos_analyzed
         ):
-            if res == NO_VARS_IN_CURRENT_CHROM:
+            if res == VarIterStatus.NO_VARS_IN_CURRENT_CHROM:
                 if remaining_chromosomes:
                     chroms_seen.append(current_chrom)
                     current_chrom = remaining_chromosomes.pop(0)
@@ -161,12 +163,12 @@ def _group_overlapping_vars(
                 else:
                     current_chrom = None
                 break  # the for that iterates over the grouped vars
-            elif res == NO_VARS_LEFT:
+            elif res == VarIterStatus.NO_VARS_LEFT:
                 break  # the for that iterates over the grouped vars
             else:
                 # This is a vars_bin
                 yield res
-        if res == NO_VARS_LEFT:
+        if res == VarIterStatus.NO_VARS_LEFT:
             break  # the while that iterates over chromosomes
 
 
